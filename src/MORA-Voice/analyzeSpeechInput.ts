@@ -11,9 +11,27 @@ interface AnalysisResult {
   moraReply: string;
 }
 
+type GroqResponse = {
+  choices?: {
+    message?: {
+      content?: string;
+    };
+  }[];
+};
+
 export async function analyzeSpeechInput(input: string): Promise<AnalysisResult | null> {
   try {
-    const response = await axios.post(
+    const cleanedInput = input
+      .replace(/hey mora|hey maura|hi mora|amora|hey more|hey morra|hey morah/gi, '')
+      .replace(/all finished/gi, '')
+      .replace(/my name is|i'm called|you can call me/gi, '')
+      .replace(/my region is|i'm selling in|targeting|for people in/gi, '')
+      .replace(/my tone is|i want the tone to be|it should feel/gi, '')
+      .replace(/the style is|make it look|visual style is|i want it to look/gi, '')
+      .replace(/and/gi, ',')
+      .trim();
+
+    const response = await axios.post<GroqResponse>(
       API_URL,
       {
         model: GROQ_MODEL_ID,
@@ -21,37 +39,35 @@ export async function analyzeSpeechInput(input: string): Promise<AnalysisResult 
           {
             role: 'system',
             content: `
-You are MORA, the intelligent eCommerce assistant embedded inside a startup tool that helps users launch stores instantly.
+You are MORA, an AI eCommerce assistant helping a user define their brand vision using natural and often casual language.
 
-The user will speak naturally — your job is to understand what they want. Extract these fields from their speech:
-1. "region" — Where is their target market?
-2. "tone" — What brand tone do they want (e.g. bold, clean, warm)?
-3. "styleNotes" — What extra adjectives or concepts should define their site's visual feeling?
-4. "moraReply" — Respond like MORA. Friendly, confident, brief, and charming.
+Your task is to extract the following 4 fields from their speech:
+1. "region" — Target audience location (continent, country, or region)
+2. "tone" — Brand tone in 1–2 descriptive words (e.g., elegant, bold, fun, minimalist)
+3. "styleNotes" — Visual or cultural descriptors (e.g., luxury, colorful, modern, nature-inspired, techy, traditional)
+4. "moraReply" — A confident, friendly response confirming you understood, using natural human tone.
 
-Always return pure JSON.
-If the user is vague, take your best guess and default to modern tone.
-If unsure about a field, leave it out **only if absolutely necessary**.
+Be flexible with slang, filler, long-winded speech, or mixed phrasing. Guess intelligently if unclear.
 
-Examples:
-Input: "I want a fun site that’s for young people in Brazil — kinda colorful but not crazy."
-Output:
+Examples of valid inputs include:
+- "So my name’s Jake and I’m thinking Kenya, kinda rustic but cool, earthy tones, bold vibe."
+- "Let’s go with Gen Z in the US, super minimal and dark-mode looking."
+
+Output clean JSON ONLY:
 {
-  "region": "Brazil",
-  "tone": "fun",
-  "styleNotes": "colorful, youth-focused",
-  "moraReply": "Great! A colorful and fun brand for Brazil sounds exciting. Let’s make it awesome."
+  "region": "...",
+  "tone": "...",
+  "styleNotes": "...",
+  "moraReply": "..."
 }
-
-Ready to extract. Always return JSON only.
-            `.trim(),
+`.trim(),
           },
           {
             role: 'user',
-            content: input,
+            content: cleanedInput,
           },
         ],
-        temperature: 0.3,
+        temperature: 0.4,
       },
       {
         headers: {
@@ -61,18 +77,17 @@ Ready to extract. Always return JSON only.
       }
     );
 
-    type GroqResponse = {
-      choices?: { message?: { content?: string } }[];
-    };
-
-    const data = response.data as GroqResponse;
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return null;
-
+    const content = response.data?.choices?.[0]?.message?.content || '';
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
-    return JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    if (!parsed.region || !parsed.tone || !parsed.styleNotes || !parsed.moraReply) {
+      return null;
+    }
+
+    return parsed as AnalysisResult;
   } catch (error) {
     console.error('❌ Failed to analyze speech input:', error);
     return null;

@@ -2,14 +2,6 @@ import React, { useState } from 'react';
 import { speakWithMora } from '../MORA-Voice/textToSpeech';
 import { usePrimingStore } from '../stores/usePrimingStore';
 
-// Add SpeechRecognition types for TypeScript
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}
-
 const industryOptions = ['Beauty', 'Electronics', 'Agriculture', 'Medical', 'Solar'];
 
 export default function PrimingWizard() {
@@ -17,31 +9,8 @@ export default function PrimingWizard() {
   const [name, setName] = useState('');
   const [industry, setIndustry] = useState(industryOptions[0]);
   const [transcript, setTranscript] = useState('');
-  const [listening, setListening] = useState(false);
 
   const { setUserName, setIndustryKey, setTargetRegion, setBrandTone, setStyleNotes } = usePrimingStore();
-
-  const handleSpeech = () => {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
-    recognition.start();
-    setListening(true);
-
-    recognition.onresult = (event: any) => {
-      const spokenText: string = event.results[0][0].transcript;
-      setTranscript(spokenText);
-      const [region, tone, ...notes]: string[] = spokenText.split(',').map((s: string) => s.trim());
-      setTargetRegion(region);
-      setBrandTone(tone);
-      setStyleNotes(notes.join(', '));
-      setStep(2);
-      setListening(false);
-    };
-
-    recognition.onerror = () => {
-      setListening(false);
-    };
-  };
 
   const steps = [
     <div key="step-0">
@@ -69,9 +38,8 @@ export default function PrimingWizard() {
         speakWithMora(intro);
       }}>Meet MORA</button>
 
-      <p>{listening ? 'Listening...' : 'Click below to speak.'}</p>
-      <button onClick={handleSpeech}>Start Speaking</button>
-      <p><strong>Transcript:</strong> {transcript}</p>
+      <p>🎙️ Voice control is managed by MORA. Say "Hey MORA" to begin.</p>
+      <p><strong>Transcript:</strong> {transcript || 'Voice captured via carousel flow'}</p>
     </div>,
 
     <div key="step-2">

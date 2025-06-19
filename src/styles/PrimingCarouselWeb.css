@@ -73,8 +73,8 @@ button:hover {
 
 /* ✅ MORA's icon */
 .mora-icon {
-  width: 64px;
-  height: 64px;
+  width: 125px;
+  height: 125px;
   border-radius: 50%;
   opacity: 0.85;
   transition: all 0.3s ease-in-out;
@@ -89,8 +89,8 @@ button:hover {
 
 /* ✅ User icon */
 .user-icon {
-  width: 64px;
-  height: 64px;
+  width: 125px;
+  height: 125px;
   border-radius: 50%;
   opacity: 0.85;
   transition: all 0.3s ease-in-out;
@@ -102,3 +102,26 @@ button:hover {
   transform: scale(1.06);
   box-shadow: 0 0 10px rgba(255, 200, 0, 0.5);
 }
+/* Speaking pulse animation (for MORA) */
+@keyframes moraPulse {
+  0%   { box-shadow: 0 0 8px rgba(0, 255, 170, 0.4); }
+  50%  { box-shadow: 0 0 18px rgba(0, 255, 170, 0.8); }
+  100% { box-shadow: 0 0 8px rgba(0, 255, 170, 0.4); }
+}
+
+/* Listening pulse animation (for USER) */
+@keyframes userPulse {
+  0%   { box-shadow: 0 0 6px rgba(255, 80, 0, 0.4); }
+  50%  { box-shadow: 0 0 16px rgba(255, 80, 0, 0.9); }
+  100% { box-shadow: 0 0 6px rgba(255, 80, 0, 0.4); }
+}
+
+/* Active state classes */
+.mora-icon.speaking {
+  animation: moraPulse 1.2s infinite ease-in-out;
+}
+
+.user-icon.listening {
+  animation: userPulse 1.2s infinite ease-in-out;
+}
+

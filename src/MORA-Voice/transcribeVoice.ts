@@ -1,79 +1,29 @@
-// app/voice/transcribeVoice.ts
-
 type TranscribeCallback = (text: string) => void;
 type ErrorCallback = (error: string) => void;
 
-type SpeechRecognitionEvent = any;
-type SpeechRecognitionErrorEvent = any;
+// Explicit cross-browser fallback with correct TS handling
+export function transcribeVoice(onTranscribed: TranscribeCallback, onError: ErrorCallback) {
+  const SpeechRecognitionClass =
+    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-// Add a type declaration for SpeechRecognition if it doesn't exist
-type SpeechRecognition = typeof window.SpeechRecognition;
-
-let recognition: InstanceType<SpeechRecognition> | null = null;
-let fullTranscript = '';
-
-export function initializeTranscription(onResult: TranscribeCallback, onError: ErrorCallback) {
-  const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
-  if (!SpeechRecognition) {
+  if (!SpeechRecognitionClass) {
     onError('Speech recognition not supported in this browser.');
     return;
   }
 
-  recognition = new SpeechRecognition();
+  const recognition = new SpeechRecognitionClass();
+  recognition.continuous = false;
+  recognition.interimResults = false;
   recognition.lang = 'en-US';
-  recognition.interimResults = true;
-  recognition.continuous = true;
 
-  fullTranscript = '';
-
-  recognition.onresult = (event: SpeechRecognitionEvent) => {
-    let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      const transcriptPiece = event.results[i][0].transcript;
-      if (event.results[i].isFinal) {
-        fullTranscript += transcriptPiece + ' ';
-      } else {
-        interim += transcriptPiece;
-      }
-    }
-
-    // Final callback fires after brief pause
-    clearTimeout((recognition as any)._finalTimeout);
-    (recognition as any)._finalTimeout = setTimeout(() => {
-      if (fullTranscript.trim()) {
-        onResult(fullTranscript.trim());
-        fullTranscript = '';
-      } else {
-        onError('No speech detected. Try again.');
-      }
-    }, 1000);
+  recognition.onresult = (event: any) => {
+    const transcript = event.results[0][0].transcript;
+    onTranscribed(transcript);
   };
 
-  recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-    const errorType = event?.error;
-    if (errorType === 'no-speech' || errorType === 'audio-capture') {
-      onError('Couldn’t hear anything clearly. Try again.');
-    } else if (errorType === 'network') {
-      onError('Network issue interrupted recognition.');
-    } else {
-      onError(`Speech recognition error: ${event.error}`);
-    }
+  recognition.onerror = (event: any) => {
+    onError(event.error || 'Unknown error');
   };
 
-  recognition.onend = () => {
-    // Automatically restart if we want to keep it going (future expansion)
-  };
-}
-
-export function startListening() {
-  if (!recognition) {
-    console.error('Recognition not initialized. Call initializeTranscription first.');
-    return;
-  }
-  fullTranscript = '';
   recognition.start();
-}
-
-export function stopListening() {
-  recognition?.stop();
 }
